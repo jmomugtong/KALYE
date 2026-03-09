@@ -1,0 +1,42 @@
+name: Model Evaluation
+
+on:
+  push:
+    paths:
+      - "models/**"
+      - "data/evals/**"
+      - "scripts/eval_*"
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.4
+
+      - name: Install dependencies
+        working-directory: backend
+        run: poetry install
+
+      - name: Run detection eval
+        run: |
+          python scripts/eval_detection.py \
+            --model models/yolov8_pothole.pt \
+            --data data/evals/metro_manila_labeled \
+            --threshold 0.75
+
+      - name: Run segmentation eval
+        run: |
+          python scripts/eval_segmentation.py \
+            --model models/segformer_sidewalk.pt \
+            --iou-threshold 0.65
+
+      - name: Bias analysis
+        run: |
+          python scripts/eval_bias.py \
+            --output reports/bias_analysis.json

@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+
+# Node.js
+node_modules/
+.next/
+out/
+.turbo/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# AI Models (large binary files)
+models/*.pt
+models/*.onnx
+models/*.bin
+models/*.safetensors
+models/*.pth
+
+# Data (large datasets)
+data/seed/*.jpg
+data/seed/*.png
+data/evals/metro_manila_labeled/images/
+!data/evals/metro_manila_labeled/images/.gitkeep
+
+# Docker
+*.log
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# MinIO data
+minio_data/
+
+# Grafana/Prometheus data
+grafana_data/
+prometheus_data/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Model cache
+/tmp/models/

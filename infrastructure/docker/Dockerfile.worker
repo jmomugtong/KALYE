@@ -1,0 +1,29 @@
+# ─── Stage 1: System Dependencies ────────────────────────────────────────────
+FROM python:3.11-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgeos-dev \
+    libgdal-dev \
+    libproj-dev \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# ─── Stage 2: Python Dependencies ───────────────────────────────────────────
+FROM base AS deps
+
+RUN pip install --no-cache-dir poetry==1.8.4
+
+WORKDIR /app
+COPY pyproject.toml poetry.lock* ./
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-ansi --without dev
+
+# ─── Stage 3: Application ───────────────────────────────────────────────────
+FROM deps AS app
+
+COPY . /app
+
+CMD ["celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--concurrency=4"]
