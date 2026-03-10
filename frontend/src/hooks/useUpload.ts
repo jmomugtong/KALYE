@@ -1,138 +1,87 @@
-import { useState, useCallback, useRef } from 'react';
-import axios, { AxiosProgressEvent, CancelTokenSource } from 'axios';
+'use client';
 
-export type FileStatus = 'pending' | 'uploading' | 'complete' | 'error';
+import { useState, useCallback } from 'react';
+import { uploadImage } from '@/lib/api';
 
-export interface UploadFileState {
-  file: File;
+export interface UploadItem {
   id: string;
+  fileName: string;
   progress: number;
-  status: FileStatus;
+  status: 'uploading' | 'processing' | 'complete' | 'error';
   error?: string;
+  responseId?: string;
 }
 
-export interface UseUploadOptions {
-  endpoint?: string;
-  onComplete?: (fileId: string) => void;
-  onError?: (fileId: string, error: string) => void;
-  onAllComplete?: () => void;
-}
-
-export function useUpload(options: UseUploadOptions = {}) {
-  const {
-    endpoint = '/api/v1/images/upload',
-    onComplete,
-    onError,
-    onAllComplete,
-  } = options;
-
-  const [files, setFiles] = useState<UploadFileState[]>([]);
+export function useUpload() {
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const cancelTokensRef = useRef<Map<string, CancelTokenSource>>(new Map());
 
-  const addFiles = useCallback((newFiles: File[]) => {
-    const fileStates: UploadFileState[] = newFiles.map((file) => ({
-      file,
-      id: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      progress: 0,
-      status: 'pending' as FileStatus,
-    }));
-    setFiles((prev) => [...prev, ...fileStates]);
-    return fileStates;
-  }, []);
-
-  const removeFile = useCallback((fileId: string) => {
-    const cancelToken = cancelTokensRef.current.get(fileId);
-    if (cancelToken) {
-      cancelToken.cancel('Upload cancelled by user');
-      cancelTokensRef.current.delete(fileId);
-    }
-    setFiles((prev) => prev.filter((f) => f.id !== fileId));
-  }, []);
-
-  const clearFiles = useCallback(() => {
-    cancelTokensRef.current.forEach((token) => token.cancel('Cleared'));
-    cancelTokensRef.current.clear();
-    setFiles([]);
-  }, []);
-
-  const updateFileState = useCallback(
-    (fileId: string, update: Partial<UploadFileState>) => {
-      setFiles((prev) =>
-        prev.map((f) => (f.id === fileId ? { ...f, ...update } : f)),
+  const updateUpload = useCallback(
+    (id: string, updates: Partial<UploadItem>) => {
+      setUploads((prev) =>
+        prev.map((u) => (u.id === id ? { ...u, ...updates } : u))
       );
     },
-    [],
-  );
-
-  const uploadSingleFile = useCallback(
-    async (fileState: UploadFileState, location?: { lat: number; lng: number }) => {
-      const cancelSource = axios.CancelToken.source();
-      cancelTokensRef.current.set(fileState.id, cancelSource);
-
-      updateFileState(fileState.id, { status: 'uploading', progress: 0 });
-
-      const formData = new FormData();
-      formData.append('file', fileState.file);
-      if (location) {
-        formData.append('latitude', String(location.lat));
-        formData.append('longitude', String(location.lng));
-      }
-
-      try {
-        await axios.post(endpoint, formData, {
-          cancelToken: cancelSource.token,
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (event: AxiosProgressEvent) => {
-            if (event.total) {
-              const pct = Math.round((event.loaded * 100) / event.total);
-              updateFileState(fileState.id, { progress: pct });
-            }
-          },
-        });
-
-        updateFileState(fileState.id, { status: 'complete', progress: 100 });
-        onComplete?.(fileState.id);
-      } catch (err: unknown) {
-        if (axios.isCancel(err)) return;
-        const message =
-          err instanceof Error ? err.message : 'Upload failed';
-        updateFileState(fileState.id, { status: 'error', error: message });
-        onError?.(fileState.id, message);
-      } finally {
-        cancelTokensRef.current.delete(fileState.id);
-      }
-    },
-    [endpoint, updateFileState, onComplete, onError],
+    []
   );
 
   const uploadFiles = useCallback(
-    async (location?: { lat: number; lng: number }) => {
-      const pending = files.filter((f) => f.status === 'pending');
-      if (pending.length === 0) return;
-
+    async (files: File[]) => {
       setIsUploading(true);
-      try {
-        await Promise.all(pending.map((f) => uploadSingleFile(f, location)));
-        onAllComplete?.();
-      } finally {
-        setIsUploading(false);
-      }
+
+      const newUploads: UploadItem[] = files.map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        fileName: file.name,
+        progress: 0,
+        status: 'uploading' as const,
+      }));
+
+      setUploads((prev) => [...prev, ...newUploads]);
+
+      const promises = files.map(async (file, index) => {
+        const uploadItem = newUploads[index];
+        try {
+          const response = await uploadImage(file, undefined, undefined, (progress) => {
+            updateUpload(uploadItem.id, { progress });
+          });
+
+          updateUpload(uploadItem.id, {
+            status: 'processing',
+            progress: 100,
+            responseId: response.id,
+          });
+
+          // Mark as complete (actual completion would come via WebSocket)
+          updateUpload(uploadItem.id, {
+            status: 'complete',
+          });
+        } catch (err) {
+          updateUpload(uploadItem.id, {
+            status: 'error',
+            error: err instanceof Error ? err.message : 'Upload failed',
+          });
+        }
+      });
+
+      await Promise.allSettled(promises);
+      setIsUploading(false);
     },
-    [files, uploadSingleFile, onAllComplete],
+    [updateUpload]
   );
 
-  const overallProgress = files.length === 0
-    ? 0
-    : Math.round(files.reduce((sum, f) => sum + f.progress, 0) / files.length);
+  const clearCompleted = useCallback(() => {
+    setUploads((prev) => prev.filter((u) => u.status !== 'complete'));
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setUploads([]);
+  }, []);
 
   return {
-    files,
+    uploads,
     isUploading,
-    overallProgress,
-    addFiles,
-    removeFile,
-    clearFiles,
     uploadFiles,
+    clearCompleted,
+    clearAll,
   };
 }
