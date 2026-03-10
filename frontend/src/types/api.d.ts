@@ -93,3 +93,32 @@ export interface BarangayRanking {
   trend: 'up' | 'down' | 'stable';
   change: number;
 }
+
+export interface TrendDataPoint {
+  week: string;
+  scores: Record<string, number>;
+}
+
+export interface DetectionStat {
+  type: string;
+  count: number;
+  percentage: number;
+}
+
+export interface StatsSummary {
+  totalImages: number;
+  totalDetections: number;
+  avgScore: number;
+  mostCommonIssue: string;
+  recentActivity: number;
+}
+
+export interface AnalyticsFilters {
+  dateRange: {
+    start: string;
+    end: string;
+  };
+  preset?: 'last_week' | 'last_month' | 'last_year' | 'custom';
+  barangays: string[];
+  detectionTypes: string[];
+}
