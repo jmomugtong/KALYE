@@ -4,7 +4,9 @@ services:
   # ─── Data Stores ──────────────────────────────────────────────────────────────
 
   postgres:
-    image: postgis/postgis:15-3.3
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.db
     environment:
       POSTGRES_USER: kalye
       POSTGRES_PASSWORD: kalye_dev
@@ -13,6 +15,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infrastructure/docker/init-extensions.sql:/docker-entrypoint-initdb.d/10-extensions.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U kalye"]
       interval: 5s
@@ -116,7 +119,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./infrastructure/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - promdata:/prometheus
 
   grafana:

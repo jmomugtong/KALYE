@@ -75,7 +75,7 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("idx_images_user_id", "images", ["user_id"])
-    op.create_index("idx_images_location", "images", ["location"], postgresql_using="gist")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_images_location ON images USING gist (location)")
     op.create_index("idx_images_processing_status", "images", ["processing_status"])
 
     # Detections
@@ -94,7 +94,7 @@ def upgrade() -> None:
     )
     op.create_index("idx_detections_image_id", "detections", ["image_id"])
     op.create_index("idx_detections_detection_type", "detections", ["detection_type"])
-    op.create_index("idx_detections_location", "detections", ["location"], postgresql_using="gist")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_detections_location ON detections USING gist (location)")
 
     # Locations (barangay boundaries)
     op.create_table(
@@ -107,7 +107,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index("idx_locations_geometry", "locations", ["geometry"], postgresql_using="gist")
+    op.execute("CREATE INDEX IF NOT EXISTS idx_locations_geometry ON locations USING gist (geometry)")
     op.create_index("idx_locations_city_barangay", "locations", ["city", "barangay_name"])
 
     # Walkability Scores
