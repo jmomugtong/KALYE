@@ -44,9 +44,15 @@ opencv-python-headless = "^4.10.0"
 pillow = "^10.4.0"
 sentence-transformers = "^3.2.0"
 
+# Generative AI
+langchain = "^0.3.0"
+langchain-community = "^0.3.0"
+ollama = "^0.4.0"
+
 # Geospatial
 shapely = "^2.0.6"
 geopy = "^2.4.1"
+pgvector = "^0.3.0"
 
 # Auth
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
@@ -58,6 +64,9 @@ opentelemetry-sdk = "^1.28.0"
 opentelemetry-instrumentation-fastapi = "^0.49b0"
 prometheus-client = "^0.21.0"
 
+# Resilience
+tenacity = "^9.0.0"
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
 pytest-asyncio = "^0.24.0"
@@ -66,6 +75,7 @@ httpx = "^0.27.0"
 faker = "^30.0.0"
 ruff = "^0.7.0"
 mypy = "^1.13.0"
+testcontainers = "^4.8.0"
 
 [build-system]
 requires = ["poetry-core"]

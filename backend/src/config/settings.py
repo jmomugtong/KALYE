@@ -38,8 +38,13 @@ class Settings(BaseSettings):
     hf_token: str = ""
     model_cache_dir: str = "/tmp/models"
 
+    # Ollama (Local LLM)
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "mistral"
+
     # Observability
     otel_exporter_otlp_endpoint: str = "http://localhost:4317"
+    jaeger_ui_url: str = "http://localhost:16686"
     prometheus_port: int = 9090
 
     # Feature Flags
