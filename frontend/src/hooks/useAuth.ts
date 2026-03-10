@@ -1,69 +1,94 @@
 'use client';
 
-import { useSession, signIn, signOut, SessionProvider } from 'next-auth/react';
-import { useCallback } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from 'react';
+import { createElement } from 'react';
+import { login as apiLogin, register as apiRegister } from '@/lib/api';
+import type { User, AuthTokens } from '@/types/user';
 
-export { SessionProvider as AuthProvider };
+interface AuthContextValue {
+  user: User | null;
+  tokens: AuthTokens | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+}
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function useAuth() {
-  const { data: session, status } = useSession();
+const TOKENS_KEY = 'kalye_tokens';
+const USER_KEY = 'kalye_user';
 
-  const isLoading = status === 'loading';
-  const isAuthenticated = status === 'authenticated';
-  const user = session?.user ?? null;
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        throw new Error(
-          result.error === 'CredentialsSignin'
-            ? 'Invalid email or password'
-            : result.error
-        );
+  useEffect(() => {
+    try {
+      const storedTokens = localStorage.getItem(TOKENS_KEY);
+      const storedUser = localStorage.getItem(USER_KEY);
+      if (storedTokens) {
+        setTokens(JSON.parse(storedTokens));
       }
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+    } catch {
+      // Invalid stored data
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-      return result;
+  const login = useCallback(async (email: string, password: string) => {
+    const authTokens = await apiLogin(email, password);
+    setTokens(authTokens);
+    localStorage.setItem(TOKENS_KEY, JSON.stringify(authTokens));
+  }, []);
+
+  const register = useCallback(
+    async (name: string, email: string, password: string) => {
+      const authTokens = await apiRegister(name, email, password);
+      setTokens(authTokens);
+      localStorage.setItem(TOKENS_KEY, JSON.stringify(authTokens));
     },
     []
   );
 
-  const logout = useCallback(async () => {
-    await signOut({ callbackUrl: '/login' });
+  const logout = useCallback(() => {
+    setUser(null);
+    setTokens(null);
+    localStorage.removeItem(TOKENS_KEY);
+    localStorage.removeItem(USER_KEY);
+    window.location.href = '/login';
   }, []);
 
-  const register = useCallback(
-    async (email: string, password: string) => {
-      const response = await fetch(`${BACKEND_URL}/api/v1/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.detail || 'Registration failed');
-      }
-
-      // Auto-login after registration
-      return login(email, password);
-    },
-    [login]
-  );
-
-  return {
+  const value: AuthContextValue = {
     user,
-    isAuthenticated,
+    tokens,
+    isAuthenticated: tokens !== null,
     isLoading,
     login,
-    logout,
     register,
+    logout,
   };
+
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
