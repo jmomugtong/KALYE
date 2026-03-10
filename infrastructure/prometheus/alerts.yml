@@ -1,0 +1,35 @@
+groups:
+  - name: kalye_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(kalye_api_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(kalye_api_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate"
+          description: "More than 1% of API requests are returning 5xx errors over the last 5 minutes."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(kalye_api_latency_seconds_bucket[5m])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency (p95 > 2s)"
+          description: "The 95th percentile API latency has exceeded 2 seconds for 5 minutes."
+
+      - alert: HighQueueLength
+        expr: kalye_celery_queue_length > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery queue length is high"
+          description: "The Celery task queue has had more than 100 pending tasks for 5 minutes."
