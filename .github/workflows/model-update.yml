@@ -1,0 +1,190 @@
+name: Model Update Evaluation
+
+on:
+  push:
+    paths:
+      - 'models/**'
+      - 'data/evals/**'
+      - 'scripts/eval_*'
+  pull_request:
+    paths:
+      - 'models/**'
+
+jobs:
+  evaluate-models:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Poetry and dependencies
+        run: |
+          pip install poetry
+          cd backend && poetry install --no-root
+
+      - name: Run detection evaluation (YOLOv8 - Pothole)
+        id: eval-detection
+        run: |
+          cd backend && poetry run python ../scripts/eval_detection.py \
+            --model ../models/yolov8_pothole.pt \
+            --data ../data/evals/metro_manila_labeled \
+            --threshold 0.75 \
+            --output ../reports/detection_results.json
+          echo "Detection evaluation complete"
+
+      - name: Run segmentation evaluation (SegFormer - Sidewalk)
+        id: eval-segmentation
+        run: |
+          cd backend && poetry run python ../scripts/eval_segmentation.py \
+            --model ../models/segformer_sidewalk.pt \
+            --data ../data/evals/metro_manila_labeled \
+            --iou-threshold 0.65 \
+            --output ../reports/segmentation_results.json
+          echo "Segmentation evaluation complete"
+
+      - name: Run obstruction detection evaluation
+        id: eval-obstruction
+        run: |
+          cd backend && poetry run python ../scripts/eval_detection.py \
+            --model ../models/yolov8_obstruction.pt \
+            --data ../data/evals/metro_manila_labeled \
+            --threshold 0.80 \
+            --metric precision \
+            --output ../reports/obstruction_results.json
+          echo "Obstruction detection evaluation complete"
+
+      - name: Run bias analysis
+        id: eval-bias
+        run: |
+          cd backend && poetry run python ../scripts/eval_bias.py \
+            --output ../reports/bias_analysis.json \
+            --max-std-dev 0.10
+          echo "Bias analysis complete"
+
+      - name: Upload evaluation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-evaluation-reports
+          path: reports/
+          retention-days: 30
+
+  verify-regression:
+    runs-on: ubuntu-latest
+    needs: evaluate-models
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download evaluation reports
+        uses: actions/download-artifact@v4
+        with:
+          name: model-evaluation-reports
+          path: reports/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check for performance regression
+        run: |
+          python -c "
+          import json, sys
+
+          thresholds = {
+              'detection': {'metric': 'mAP@0.5', 'min': 0.75},
+              'segmentation': {'metric': 'IoU', 'min': 0.65},
+              'obstruction': {'metric': 'precision', 'min': 0.80},
+          }
+
+          failed = []
+
+          for name, config in thresholds.items():
+              report_file = f'reports/{name}_results.json'
+              try:
+                  with open(report_file) as f:
+                      results = json.load(f)
+                  score = results.get(config['metric'], results.get('score', 0))
+                  if score < config['min']:
+                      failed.append(f'{name}: {config[\"metric\"]}={score:.4f} < {config[\"min\"]}')
+                      print(f'FAIL {name}: {config[\"metric\"]}={score:.4f} (threshold: {config[\"min\"]})')
+                  else:
+                      print(f'PASS {name}: {config[\"metric\"]}={score:.4f} (threshold: {config[\"min\"]})')
+              except FileNotFoundError:
+                  print(f'SKIP {name}: report not found at {report_file}')
+              except (json.JSONDecodeError, KeyError) as e:
+                  print(f'WARN {name}: could not parse report - {e}')
+
+          # Check bias
+          try:
+              with open('reports/bias_analysis.json') as f:
+                  bias = json.load(f)
+              std_dev = bias.get('district_std_dev', bias.get('std_dev', 1.0))
+              if std_dev > 0.10:
+                  failed.append(f'bias: std_dev={std_dev:.4f} > 0.10')
+                  print(f'FAIL bias: district_std_dev={std_dev:.4f} (max: 0.10)')
+              else:
+                  print(f'PASS bias: district_std_dev={std_dev:.4f} (max: 0.10)')
+          except FileNotFoundError:
+              print('SKIP bias: report not found')
+          except (json.JSONDecodeError, KeyError) as e:
+              print(f'WARN bias: could not parse report - {e}')
+
+          if failed:
+              print(f'\n{len(failed)} regression(s) detected:')
+              for f in failed:
+                  print(f'  - {f}')
+              sys.exit(1)
+          else:
+              print('\nAll model evaluations passed.')
+          "
+
+      - name: Comment on PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '## Model Evaluation Results\n\n';
+            body += '| Task | Metric | Score | Threshold | Status |\n';
+            body += '|------|--------|-------|-----------|--------|\n';
+
+            const checks = [
+              { file: 'reports/detection_results.json', task: 'Pothole Detection', metric: 'mAP@0.5', threshold: 0.75 },
+              { file: 'reports/segmentation_results.json', task: 'Sidewalk Segmentation', metric: 'IoU', threshold: 0.65 },
+              { file: 'reports/obstruction_results.json', task: 'Obstruction Detection', metric: 'precision', threshold: 0.80 },
+            ];
+
+            for (const check of checks) {
+              try {
+                const data = JSON.parse(fs.readFileSync(check.file, 'utf8'));
+                const score = data[check.metric] || data.score || 'N/A';
+                const numScore = parseFloat(score);
+                const status = numScore >= check.threshold ? ':white_check_mark:' : ':x:';
+                body += `| ${check.task} | ${check.metric} | ${numScore.toFixed(4)} | ${check.threshold} | ${status} |\n`;
+              } catch {
+                body += `| ${check.task} | ${check.metric} | N/A | ${check.threshold} | :warning: |\n`;
+              }
+            }
+
+            try {
+              const bias = JSON.parse(fs.readFileSync('reports/bias_analysis.json', 'utf8'));
+              const stdDev = bias.district_std_dev || bias.std_dev || 'N/A';
+              const numStd = parseFloat(stdDev);
+              const status = numStd <= 0.10 ? ':white_check_mark:' : ':x:';
+              body += `| District Bias | Std Dev | ${numStd.toFixed(4)} | <0.10 | ${status} |\n`;
+            } catch {
+              body += `| District Bias | Std Dev | N/A | <0.10 | :warning: |\n`;
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body,
+            });
