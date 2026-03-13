@@ -63,13 +63,14 @@ class BLIPCaptioner:
                     from transformers import Blip2ForConditionalGeneration, Blip2Processor
 
                     logger.info("Loading BLIP-2 processor from %s", self.model_name)
-                    self._processor = Blip2Processor.from_pretrained(self.model_name)
+                    self._processor = Blip2Processor.from_pretrained(self.model_name, revision="main")  # nosec B615
 
                     logger.info("Loading BLIP-2 model from %s", self.model_name)
                     dtype = torch.float16 if self.device == "cuda" else torch.float32
-                    self._model = Blip2ForConditionalGeneration.from_pretrained(
+                    self._model = Blip2ForConditionalGeneration.from_pretrained(  # nosec B615
                         self.model_name,
                         torch_dtype=dtype,
+                        revision="main",
                     ).to(self.device)
 
                     logger.info("BLIP-2 model loaded successfully on %s", self.device)

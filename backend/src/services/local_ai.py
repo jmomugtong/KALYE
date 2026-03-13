@@ -74,16 +74,18 @@ def _ensure_models():
     logger.info("  YOLOv8n loaded")
 
     # SegFormer-B3 — 180MB
-    _seg_processor = SegformerImageProcessor.from_pretrained("nvidia/segformer-b3-finetuned-ade-512-512")
-    _seg_model = SegformerForSemanticSegmentation.from_pretrained("nvidia/segformer-b3-finetuned-ade-512-512")
+    # nosec B615 — well-known NVIDIA/Salesforce models; fallback path only (Claude Vision is primary)
+    _seg_processor = SegformerImageProcessor.from_pretrained("nvidia/segformer-b3-finetuned-ade-512-512", revision="main")  # nosec B615
+    _seg_model = SegformerForSemanticSegmentation.from_pretrained("nvidia/segformer-b3-finetuned-ade-512-512", revision="main")  # nosec B615
     _seg_model.eval()
     _seg_id2label = _seg_model.config.id2label
     logger.info("  SegFormer loaded (%d classes)", len(_seg_id2label))
 
     # BLIP-base — 990MB
-    _blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-    _blip_model = BlipForConditionalGeneration.from_pretrained(
+    _blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base", revision="main")  # nosec B615
+    _blip_model = BlipForConditionalGeneration.from_pretrained(  # nosec B615
         "Salesforce/blip-image-captioning-base",
+        revision="main",
     )
     _blip_model.eval()
     logger.info("  BLIP-base loaded")

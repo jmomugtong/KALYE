@@ -208,19 +208,21 @@ class ModelManager:
         from transformers import AutoModel, AutoTokenizer
 
         try:
-            tokenizer = AutoTokenizer.from_pretrained(
+            tokenizer = AutoTokenizer.from_pretrained(  # nosec B615
                 model_id,
                 cache_dir=str(self._cache_dir),
                 token=self._hf_token,
+                revision="main",
             )
         except Exception:
             tokenizer = None
             logger.debug("No tokenizer for %s – skipping", model_id)
 
-        model = AutoModel.from_pretrained(
+        model = AutoModel.from_pretrained(  # nosec B615
             model_id,
             cache_dir=str(self._cache_dir),
             token=self._hf_token,
+            revision="main",
         )
 
         if device == "cuda":

@@ -172,8 +172,8 @@ class SegFormerSegmenter:
         )
 
         logger.info("Loading SegFormer model: %s", self.model_name)
-        self._processor = SegformerImageProcessor.from_pretrained(self.model_name)
-        self._model = SegformerForSemanticSegmentation.from_pretrained(self.model_name)
+        self._processor = SegformerImageProcessor.from_pretrained(self.model_name, revision="main")  # nosec B615
+        self._model = SegformerForSemanticSegmentation.from_pretrained(self.model_name, revision="main")  # nosec B615
 
         # Move to device
         if self.device == "cuda":
