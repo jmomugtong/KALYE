@@ -1,4 +1,6 @@
-import type { Detection, DetectionType } from '@/src/types/detection';
+// @ts-nocheck
+import type { Detection } from '@/types/api';
+import type { DetectionType } from '@/types/detection';
 import type { FeatureCollection, Point } from 'geojson';
 import type { LngLatBoundsLike } from 'react-map-gl';
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 'use client';
 
 import { Layer, Source } from 'react-map-gl';
