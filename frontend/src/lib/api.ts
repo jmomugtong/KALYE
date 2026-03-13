@@ -29,7 +29,7 @@ apiClient.interceptors.request.use(
       if (tokensStr) {
         try {
           const tokens: AuthTokens = JSON.parse(tokensStr);
-          config.headers.Authorization = `Bearer ${tokens.accessToken}`;
+          config.headers.Authorization = `Bearer ${tokens.access_token}`;
         } catch {
           // Invalid token data, ignore
         }
@@ -80,18 +80,25 @@ export async function register(
 }
 
 // Images
+export interface ImageUploadResult {
+  image_id: string;
+  status: string;
+  message: string;
+  detections_created: number;
+}
+
 export async function uploadImage(
   file: File,
   latitude?: number,
   longitude?: number,
   onProgress?: (progress: number) => void
-): Promise<UploadResponse> {
+): Promise<ImageUploadResult> {
   const formData = new FormData();
   formData.append('file', file);
   if (latitude !== undefined) formData.append('latitude', String(latitude));
   if (longitude !== undefined) formData.append('longitude', String(longitude));
 
-  const response = await apiClient.post<UploadResponse>(
+  const response = await apiClient.post<ImageUploadResult>(
     '/api/v1/images/upload',
     formData,
     {

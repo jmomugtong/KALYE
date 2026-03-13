@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import type { FileStatus } from '@/src/hooks/useUpload';
-import type { GPSCoordinates } from '@/src/lib/exif-extractor';
-import { extractGPS } from '@/src/lib/exif-extractor';
+import type { FileStatus } from '@/hooks/useUpload';
+import type { GPSCoordinates } from '@/lib/exif-extractor';
+import { extractGPS } from '@/lib/exif-extractor';
 
 export interface FilePreviewProps {
   file: File;
@@ -23,6 +23,7 @@ function formatFileSize(bytes: number): string {
 const statusConfig: Record<FileStatus, { label: string; color: string }> = {
   pending: { label: 'Pending', color: 'bg-gray-400' },
   uploading: { label: 'Uploading', color: 'bg-blue-500' },
+  processing: { label: 'Processing', color: 'bg-yellow-500' },
   complete: { label: 'Complete', color: 'bg-green-500' },
   error: { label: 'Error', color: 'bg-red-500' },
 };
