@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     hf_token: str = ""
     model_cache_dir: str = "/tmp/models"
 
+    # Anthropic Claude API
+    anthropic_api_key: str = ""  # Claude Vision for street image analysis
+
+    # Remote AI inference (Google Colab T4)
+    colab_ai_url: str = ""  # e.g. "https://xxxx-xx-xx.ngrok-free.app"
+
     # Ollama (Local LLM)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "mistral"
