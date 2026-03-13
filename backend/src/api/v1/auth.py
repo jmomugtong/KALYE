@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 
 from src.api.middleware.auth import create_access_token, get_current_user, verify_password, hash_password
+from src.api.middleware.rate_limit import RateLimiter as _RateLimiter
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -46,7 +47,7 @@ class UserResponse(BaseModel):
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest):
+async def register(body: RegisterRequest, _auth_rl: None = Depends(_RateLimiter(tier="auth"))):
     """Create a new user account."""
     if body.email in _users_store:
         raise HTTPException(
@@ -74,7 +75,7 @@ async def register(body: RegisterRequest):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest):
+async def login(body: LoginRequest, _auth_rl: None = Depends(_RateLimiter(tier="auth"))):
     """Authenticate and return a JWT."""
     user = _users_store.get(body.email)
     if user is None or not verify_password(body.password, user["hashed_password"]):

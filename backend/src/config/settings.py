@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Remote AI inference (Google Colab T4)
     colab_ai_url: str = ""  # e.g. "https://xxxx-xx-xx.ngrok-free.app"
 
+    # CORS — comma-separated allowed origins for production
+    allowed_origins: list[str] = []
+
     # Ollama (Local LLM)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "mistral"

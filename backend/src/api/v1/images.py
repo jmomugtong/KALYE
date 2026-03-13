@@ -19,6 +19,9 @@ from src.config.settings import get_settings
 from src.db.models import Detection, DetectionType, Image, ProcessingStatus
 from src.db.postgres import get_session
 from src.api.middleware.auth import get_current_user
+from src.api.middleware.rate_limit import RateLimiter as _RateLimiter
+
+_upload_limiter = _RateLimiter(tier="upload")
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/images", tags=["images"])
@@ -195,6 +198,7 @@ async def upload_image(
     longitude: Optional[float] = Form(None),
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
+    _rl: None = Depends(_RateLimiter(tier="upload")),
 ):
     """Upload a street image. Uses Colab AI if available, otherwise simulates."""
     if file.content_type not in ("image/jpeg", "image/png", "image/webp"):
@@ -204,6 +208,13 @@ async def upload_image(
         )
 
     content = await file.read()
+    if len(content) > 10 * 1024 * 1024:  # 10 MB
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="File too large. Maximum 10 MB.")
+
+    if latitude is not None and longitude is not None:
+        if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid coordinates.")
+
     file_size = len(content)
     image_id = uuid.uuid4()
 
