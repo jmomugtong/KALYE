@@ -47,7 +47,7 @@ class StorageManager:
         object_name: str,
         metadata: dict[str, str] | None = None,
     ) -> str:
-        """Upload an image file, auto-detecting content type and attaching an MD5 checksum.
+        """Upload an image file, auto-detecting content type and attaching a SHA-256 checksum.
 
         Returns the object name / key of the stored file.
         """
@@ -56,10 +56,10 @@ class StorageManager:
             raise StorageError(f"Source file does not exist: {file_path}", operation="upload_image")
 
         content_type = self.detect_content_type(file_path)
-        checksum = self.compute_md5(file_path)
+        checksum = self.compute_checksum(file_path)
 
         combined_metadata = dict(metadata or {})
-        combined_metadata["md5_checksum"] = checksum
+        combined_metadata["sha256_checksum"] = checksum
 
         if self._backend == StorageBackend.MINIO:
             return self._minio.upload_file(
@@ -72,7 +72,7 @@ class StorageManager:
             return self._upload_local(file_path, object_name, combined_metadata)
 
     def download_image(self, object_name: str, destination: Path, verify_checksum: bool = True) -> Path:
-        """Download an image and optionally verify its MD5 checksum."""
+        """Download an image and optionally verify its SHA-256 checksum."""
         destination = Path(destination)
 
         if self._backend == StorageBackend.MINIO:
@@ -109,13 +109,13 @@ class StorageManager:
         return mime_type or "application/octet-stream"
 
     @staticmethod
-    def compute_md5(file_path: Path) -> str:
-        """Compute MD5 hex digest of a file."""
-        md5 = hashlib.md5()
+    def compute_checksum(file_path: Path) -> str:
+        """Compute SHA-256 hex digest of a file."""
+        sha256 = hashlib.sha256()
         with open(file_path, "rb") as fh:
             for chunk in iter(lambda: fh.read(8192), b""):
-                md5.update(chunk)
-        return md5.hexdigest()
+                sha256.update(chunk)
+        return sha256.hexdigest()
 
     # ------------------------------------------------------------------
     # Local backend helpers
@@ -147,9 +147,9 @@ class StorageManager:
             meta_path = src.with_suffix(src.suffix + ".meta")
             if meta_path.is_file():
                 stored_meta = json.loads(meta_path.read_text())
-                stored_checksum = stored_meta.get("md5_checksum")
+                stored_checksum = stored_meta.get("sha256_checksum")
                 if stored_checksum:
-                    actual = self.compute_md5(destination)
+                    actual = self.compute_checksum(destination)
                     if actual != stored_checksum:
                         raise StorageError(
                             f"Checksum mismatch for '{object_name}': expected {stored_checksum}, got {actual}",
@@ -183,12 +183,12 @@ class StorageManager:
             stored_meta = metadata.get("metadata", {})
             # MinIO may prefix custom metadata with "x-amz-meta-"
             stored_checksum = (
-                stored_meta.get("md5_checksum")
-                or stored_meta.get("x-amz-meta-md5_checksum")
-                or stored_meta.get("X-Amz-Meta-Md5_checksum")
+                stored_meta.get("sha256_checksum")
+                or stored_meta.get("x-amz-meta-sha256_checksum")
+                or stored_meta.get("X-Amz-Meta-Sha256_checksum")
             )
             if stored_checksum:
-                actual = self.compute_md5(downloaded_path)
+                actual = self.compute_checksum(downloaded_path)
                 if actual != stored_checksum:
                     raise StorageError(
                         f"Checksum mismatch for '{object_name}': expected {stored_checksum}, got {actual}",
