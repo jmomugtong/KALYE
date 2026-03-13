@@ -16,10 +16,8 @@ export interface User {
 }
 
 export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-  tokenType: string;
+  access_token: string;
+  token_type: string;
 }
 
 export interface LoginRequest {

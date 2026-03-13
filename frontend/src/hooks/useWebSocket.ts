@@ -4,6 +4,13 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { WebSocketClient } from '@/lib/websocket';
 import { useAuth } from '@/hooks/useAuth';
 
+export type ProcessingStep = 'uploading' | 'detecting' | 'segmenting' | 'captioning' | 'complete';
+
+export interface ProcessingUpdate {
+  step: ProcessingStep;
+  progress: number;
+}
+
 interface UseWebSocketOptions {
   imageId: string | null;
   onMessage?: (data: unknown) => void;

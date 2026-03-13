@@ -13,6 +13,11 @@ export interface Detection {
   };
   latitude: number;
   longitude: number;
+  timestamp: string;
+  description?: string;
+  barangay?: string;
+  severity?: string;
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

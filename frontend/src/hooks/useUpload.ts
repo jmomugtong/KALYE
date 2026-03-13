@@ -3,13 +3,23 @@
 import { useState, useCallback } from 'react';
 import { uploadImage } from '@/lib/api';
 
+export type FileStatus = 'pending' | 'uploading' | 'processing' | 'complete' | 'error';
+
 export interface UploadItem {
   id: string;
   fileName: string;
   progress: number;
-  status: 'uploading' | 'processing' | 'complete' | 'error';
+  status: FileStatus;
   error?: string;
   responseId?: string;
+}
+
+export interface UploadFileState {
+  id: string;
+  file: File;
+  status: FileStatus;
+  progress: number;
+  error?: string;
 }
 
 export function useUpload() {
