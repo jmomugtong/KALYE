@@ -53,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authTokens = await apiLogin(email, password);
     setTokens(authTokens);
     localStorage.setItem(TOKENS_KEY, JSON.stringify(authTokens));
+    // Set cookie so Next.js middleware can verify auth on server side
+    document.cookie = `kalye_auth=${authTokens.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
   }, []);
 
   const register = useCallback(
@@ -60,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const authTokens = await apiRegister(name, email, password);
       setTokens(authTokens);
       localStorage.setItem(TOKENS_KEY, JSON.stringify(authTokens));
+      document.cookie = `kalye_auth=${authTokens.access_token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
     },
     []
   );
@@ -69,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokens(null);
     localStorage.removeItem(TOKENS_KEY);
     localStorage.removeItem(USER_KEY);
+    document.cookie = 'kalye_auth=; path=/; max-age=0';
     window.location.href = '/login';
   }, []);
 
