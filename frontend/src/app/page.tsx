@@ -19,16 +19,16 @@ export default function Home() {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/dashboard"
+            href="/explore"
             className="inline-flex items-center justify-center rounded-md bg-primary px-8 py-3 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors"
           >
-            Go to Dashboard
+            Explore Public Map
           </Link>
           <Link
-            href="/dashboard/upload"
+            href="/login"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-8 py-3 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
           >
-            Upload Imagery
+            Contribute Reports
           </Link>
         </div>
       </div>
