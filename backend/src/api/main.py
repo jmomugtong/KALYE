@@ -76,13 +76,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    settings = get_settings()
+    allow_origins = settings.allowed_origins if settings.allowed_origins else ["http://localhost:3000", "http://localhost:3002"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:3002"],
+        allow_origins=allow_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
+    from src.api.middleware.security_headers import SecurityHeadersMiddleware
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # ── Health ───────────────────────────────────────────────────────────
     @app.get("/health")
@@ -107,12 +111,12 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     app.include_router(rag_router)
 
-    # ── Rate limiter (soft dependency on Redis) ──────────────────────────
+    # ── Rate limiters (soft dependency on Redis) ─────────────────────────
     try:
         from src.api.middleware.rate_limit import RateLimiter
-
-        _limiter = RateLimiter(requests_per_hour=100)
-        app.state.rate_limiter = _limiter
+        app.state.rate_limiter_default = RateLimiter(tier="default")
+        app.state.rate_limiter_upload = RateLimiter(tier="upload")
+        app.state.rate_limiter_auth = RateLimiter(tier="auth")
     except Exception:
         pass  # Redis unavailable; proceed without rate limiting
 
